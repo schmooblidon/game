@@ -1,26 +1,46 @@
-function start() {
-  let elem = document.getElementById("game");
-  let params = {fullscreen : true};
-  let two = new Two(params).appendTo(elem);
+import {player} from "./player";
+import {physics} from "./physics";
+import {updateRenderObjects} from "./render";
+import {overrideKeyboardEvent, findInput} from "./input";
 
-  let circle = two.makeCircle(-70, 0, 50);
-  let rect = two.makeRectangle(70, 0, 100, 100);
+// setting up renderer
+const elem = document.getElementById("game");
+const params = {fullscreen : true};
+export const two = new Two(params).appendTo(elem);
 
-  circle.fill = "#ff8000";
-  rect.fill = "rgba(0, 200, 255, 0.75)";
+// setting up player
+export const p = new player();
 
-  let group = two.makeGroup(circle, rect);
+// setting up other variables
+let playing = false;
+const startPrompt = document.getElementById("startPrompt");
 
-  group.translation.set(two.width / 2, two.height / 2);
-  group.scale = 0;
-  group.noStroke();
+console.log(navigator.getGamepads());
 
-  two.bind("update", function(frameCount) {
-    if (group.scale > 0.9999) {
-      group.scale = group.rotation = 0;
-    }
-    let t = (1 - group.scale) * 0.125;
-    group.scale += t;
-    group.rotation += t * 4 * Math.PI;
-  }).play();
+// defining the game logic loop
+function gameLoop() {
+  p.input.updateInput();
+  physics(p);
+  updateRenderObjects();
+  setTimeout(function(){gameLoop()}, 16.666667);
 }
+
+// when page is loaded and it asks for input
+function start() {
+  if (!playing) {
+    if (findInput(p)){
+      // start game logic and render loops
+      playing = true;
+      startPrompt.remove();
+      gameLoop();
+      two.play();
+    }
+    setTimeout(function(){start()}, 16.6666667);
+  }
+}
+
+// overriding keyboard events to disable unwanted events and store properly
+document.onkeydown = overrideKeyboardEvent;
+document.onkeyup = overrideKeyboardEvent;
+
+start();
