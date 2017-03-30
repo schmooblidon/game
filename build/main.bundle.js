@@ -78,13 +78,13 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.p = exports.two = undefined;
 
-var _player = __webpack_require__(1);
+var _player = __webpack_require__(3);
 
-var _physics = __webpack_require__(3);
+var _physics = __webpack_require__(2);
 
-var _render = __webpack_require__(5);
+var _render = __webpack_require__(4);
 
-var _input = __webpack_require__(6);
+var _input = __webpack_require__(1);
 
 // setting up renderer
 var elem = document.getElementById("game");
@@ -104,7 +104,7 @@ console.log(navigator.getGamepads());
 function gameLoop() {
   p.input.updateInput();
   (0, _physics.physics)(p);
-  (0, _render.updateRenderObjects)();
+
   setTimeout(function () {
     gameLoop();
   }, 16.666667);
@@ -118,6 +118,7 @@ function start() {
       playing = true;
       startPrompt.remove();
       gameLoop();
+      (0, _render.updateRenderObjects)();
       two.play();
     }
     setTimeout(function () {
@@ -125,6 +126,13 @@ function start() {
     }, 16.6666667);
   }
 }
+/*export let tail = [];
+export let tailgroup = [];
+for (let i=0;i<29;i++) {
+  tail[i] = two.makeCircle(0, 0, 10);
+  tail[i].fill = "#ff8000";
+  tail[i].translation.set(two.width/2 + i, two.height/2 + i);
+}*/
 
 // overriding keyboard events to disable unwanted events and store properly
 document.onkeydown = _input.overrideKeyboardEvent;
@@ -134,94 +142,6 @@ start();
 
 /***/ }),
 /* 1 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.player = player;
-
-var _Vec = __webpack_require__(2);
-
-var _main = __webpack_require__(0);
-
-var _input = __webpack_require__(6);
-
-function player() {
-  this.pos = new _Vec.Vec();
-  this.vel = new _Vec.Vec();
-
-  this.input = new _input.input();
-
-  this.head = _main.two.makeCircle(0, 0, 20);
-  this.head.fill = "#ff8000";
-  this.group = _main.two.makeGroup(this.head);
-  this.group.translation.set(_main.two.width / 2, _main.two.height / 2);
-}
-
-/***/ }),
-/* 2 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.Vec = Vec;
-function Vec() {
-  var x = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
-  var y = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
-
-  this.x = x;
-  this.y = y;
-}
-
-/***/ }),
-/* 3 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.physics = physics;
-function physics(p) {
-
-  p.vel.x = p.input.lStickX[0] * 5;
-  p.vel.y = p.input.lStickY[0] * 5;
-
-  p.pos.x += p.vel.x;
-  p.pos.y += p.vel.y;
-}
-
-/***/ }),
-/* 4 */,
-/* 5 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.updateRenderObjects = updateRenderObjects;
-
-var _main = __webpack_require__(0);
-
-function updateRenderObjects() {
-  _main.p.group.translation.set(_main.two.width / 2 + _main.p.pos.x, _main.two.height / 2 + _main.p.pos.y * -1);
-}
-
-/***/ }),
-/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -244,7 +164,7 @@ function input() {
 
   this.updateInput = function () {
     // push inputs back a frame in history
-    for (var i = 1; i < 5; i++) {
+    for (var i = 4; i > 0; i--) {
       this.lStickX[i] = this.lStickX[i - 1];
       this.lStickY[i] = this.lStickY[i - 1];
       this.a[i] = this.a[i - 1];
@@ -267,11 +187,9 @@ function input() {
           this.controllerIndex = -1;
         } else {
           this.lStickX[0] = gamepad.axes[0];
-          if (Math.abs(this.lStickX[0]) < 0.3) {
-            this.lStickX[0] = 0;
-          }
           this.lStickY[0] = gamepad.axes[1] * -1;
-          if (Math.abs(this.lStickY[0]) < 0.3) {
+          if (Math.abs(this.lStickY[0]) < 0.3 && Math.abs(this.lStickX[0]) < 0.3) {
+            this.lStickX[0] = 0;
             this.lStickY[0] = 0;
           }
           this.a[0] = gamepad.buttons[0].pressed;
@@ -280,7 +198,7 @@ function input() {
 
     // calculate new inputs
     this.angle[0] = Math.atan2(this.lStickY[0], this.lStickX[0]);
-    this.magnitude[0] = Math.sqrt(Math.pow(this.lStickX[0], 2) + Math.pow(this.lStickY[0], 2));
+    this.magnitude[0] = Math.min(1, Math.sqrt(Math.pow(this.lStickX[0], 2) + Math.pow(this.lStickY[0], 2)));
   };
 }
 
@@ -336,6 +254,130 @@ function disabledEventPropagation(e) {
       event.cancelBubble = true;
     }
   }
+}
+
+/***/ }),
+/* 2 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.physics = physics;
+function physics(p) {
+
+  // find distance between target angle and current angle
+  var angDiff = p.input.angle[0] - p.angle;
+
+  // make sure distance uses shortest path (check going through -pi / pi breakpoint)
+  angDiff = Math.atan2(Math.sin(angDiff), Math.cos(angDiff));
+
+  // move current angle towards target according to distance with multipliers
+  //p.angle += angDiff * 0.2 * p.input.magnitude[0];
+  p.angle += Math.sign(angDiff) * Math.min(Math.abs(angDiff), 0.1) * p.input.magnitude[0];
+
+  p.vel.x = Math.cos(p.angle) * p.speed;
+  p.vel.y = Math.sin(p.angle) * p.speed;
+
+  for (var i = 29; i > 0; i--) {
+    p.pos[i].x = p.pos[i - 1].x;
+    p.pos[i].y = p.pos[i - 1].y;
+  }
+
+  p.pos[0].x += p.vel.x;
+  p.pos[0].y += p.vel.y;
+}
+
+/***/ }),
+/* 3 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.player = player;
+
+var _Vec = __webpack_require__(5);
+
+var _main = __webpack_require__(0);
+
+var _input = __webpack_require__(1);
+
+function player() {
+  this.pos = [];
+  for (var i = 0; i < 30; i++) {
+    this.pos[i] = new _Vec.Vec();
+  }
+  this.vel = new _Vec.Vec();
+  this.angle = Math.PI / 2;
+  this.speed = 5;
+
+  this.input = new _input.input();
+
+  this.tail = [];
+  for (var _i = 0; _i < 29; _i++) {
+    this.tail[_i] = _main.two.makeCircle(_i, _i, 5);
+    this.tail[_i].fill = "#ff8000";
+  }
+  this.tailgroup = _main.two.makeGroup(this.tail);
+  this.tailgroup.translation.set(_main.two.width / 2, _main.two.height / 2);
+  this.tailgroup.noStroke();
+
+  this.head = _main.two.makeCircle(0, 0, 10);
+  this.head.fill = "#ff8000";
+
+  this.group = _main.two.makeGroup(this.head);
+  this.group.translation.set(_main.two.width / 2, _main.two.height / 2);
+  this.group.noStroke();
+}
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.updateRenderObjects = updateRenderObjects;
+
+var _main = __webpack_require__(0);
+
+function updateRenderObjects() {
+  _main.two.bind('update', function (frameCount) {
+    _main.p.group.translation.set(_main.two.width / 2 + _main.p.pos[0].x, _main.two.height / 2 + _main.p.pos[0].y * -1);
+    _main.p.tailgroup.translation.set(_main.two.width / 2, _main.two.height / 2);
+    for (var i = 0; i < 29; i++) {
+      _main.p.tail[i].translation.set(_main.p.pos[i + 1].x, _main.p.pos[i + 1].y * -1);
+    }
+  });
+}
+
+/***/ }),
+/* 5 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.Vec = Vec;
+function Vec() {
+  var x = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+  var y = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+
+  this.x = x;
+  this.y = y;
 }
 
 /***/ })

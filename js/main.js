@@ -11,6 +11,8 @@ export const two = new Two(params).appendTo(elem);
 // setting up player
 export const p = new player();
 
+
+
 // setting up other variables
 let playing = false;
 const startPrompt = document.getElementById("startPrompt");
@@ -21,7 +23,7 @@ console.log(navigator.getGamepads());
 function gameLoop() {
   p.input.updateInput();
   physics(p);
-  updateRenderObjects();
+  
   setTimeout(function(){gameLoop()}, 16.666667);
 }
 
@@ -33,11 +35,19 @@ function start() {
       playing = true;
       startPrompt.remove();
       gameLoop();
+      updateRenderObjects();
       two.play();
     }
     setTimeout(function(){start()}, 16.6666667);
   }
 }
+/*export let tail = [];
+export let tailgroup = [];
+for (let i=0;i<29;i++) {
+  tail[i] = two.makeCircle(0, 0, 10);
+  tail[i].fill = "#ff8000";
+  tail[i].translation.set(two.width/2 + i, two.height/2 + i);
+}*/
 
 // overriding keyboard events to disable unwanted events and store properly
 document.onkeydown = overrideKeyboardEvent;

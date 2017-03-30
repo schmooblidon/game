@@ -9,7 +9,7 @@ export function input() {
 
   this.updateInput = function() {
     // push inputs back a frame in history
-    for (let i=1;i<5;i++) {
+    for (let i=4;i>0;i--) {
       this.lStickX[i] = this.lStickX[i-1];
       this.lStickY[i] = this.lStickY[i-1];
       this.a[i] = this.a[i-1];
@@ -33,11 +33,9 @@ export function input() {
       }
       else {
         this.lStickX[0] = gamepad.axes[0];
-        if (Math.abs(this.lStickX[0]) < 0.3) {
-          this.lStickX[0] = 0;
-        }
         this.lStickY[0] = gamepad.axes[1] * -1;
-        if (Math.abs(this.lStickY[0]) < 0.3) {
+        if (Math.abs(this.lStickY[0]) < 0.3 && Math.abs(this.lStickX[0]) < 0.3) {
+          this.lStickX[0] = 0;
           this.lStickY[0] = 0;
         }
         this.a[0] = gamepad.buttons[0].pressed;
@@ -46,7 +44,7 @@ export function input() {
 
     // calculate new inputs
     this.angle[0] = Math.atan2(this.lStickY[0], this.lStickX[0]);
-    this.magnitude[0] = Math.sqrt(Math.pow(this.lStickX[0], 2) + Math.pow(this.lStickY[0], 2));
+    this.magnitude[0] = Math.min(1, Math.sqrt(Math.pow(this.lStickX[0], 2) + Math.pow(this.lStickY[0], 2)));
   }
 }
 
