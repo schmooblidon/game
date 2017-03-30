@@ -2,7 +2,10 @@ export function input() {
   this.controllerIndex = -1;
   this.lStickX = [0];
   this.lStickY = [0];
+  this.lTrigger = [0];
+  this.rTrigger = [0];
   this.a = [false];
+  this.s = [false];
 
   this.angle = [0];
   this.magnitude = [0];
@@ -13,6 +16,9 @@ export function input() {
       this.lStickX[i] = this.lStickX[i-1];
       this.lStickY[i] = this.lStickY[i-1];
       this.a[i] = this.a[i-1];
+      this.lTrigger[i] = this.lTrigger[i-1];
+      this.rTrigger[i] = this.rTrigger[i-1];
+      this.s[i] = this.s[i-1];
       this.angle[i] = this.angle[i-1];
       this.magnitude[i] = this.magnitude[i-1];
     }
@@ -22,6 +28,7 @@ export function input() {
       this.lStickX[0] = ((keys[68] || keys[39]) ? 1 : 0) + ((keys[65] || keys[37]) ? -1 : 0);
       this.lStickY[0] = ((keys[87] || keys[38]) ? 1 : 0) + ((keys[83] || keys[40]) ? -1 : 0);
       this.a[0] = keys[32] || keys[90];
+      this.s[0] = keys[13] || keys[80];
     }
     // else if using a gamepad
     else {
@@ -39,6 +46,9 @@ export function input() {
           this.lStickY[0] = 0;
         }
         this.a[0] = gamepad.buttons[0].pressed;
+        this.lTrigger[0] = gamepad.buttons[6].value;
+        this.rTrigger[0] = gamepad.buttons[7].value;
+        this.s[0] = gamepad.buttons[9].pressed;
       }
     }
 
@@ -58,10 +68,12 @@ export function findInput(p) {
   else {
     const gamepads = navigator.getGamepads();
     for (let i=0;i<gamepads.length;i++) {
-      for (let j=0;j<gamepads[i].buttons.length;j++) {
-        if (gamepads[i].buttons[j].pressed) {
-          p.input.controllerIndex = i;
-          return true;
+      if (gamepads[i] !== null && gamepads[i] !== undefined) {
+        for (let j=0;j<gamepads[i].buttons.length;j++) {
+          if (gamepads[i].buttons[j].pressed) {
+            p.input.controllerIndex = i;
+            return true;
+          }
         }
       }
     }
