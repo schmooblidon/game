@@ -1,4 +1,5 @@
 import {Vec} from "./utils/Vec";
+import {LineCollider} from "./utils/LineCollider";
 import {two} from "./main";
 import {input} from "./input";
 
@@ -6,7 +7,7 @@ export function player() {
   this.pos = [];
   this.colours = [];
 
-  this.tailLength = 60;
+  this.tailLength = 94;
 
   for (let i=0;i<this.tailLength;i++) {
     this.pos[i] = new Vec();
@@ -14,15 +15,24 @@ export function player() {
   }
   this.vel = new Vec();
   this.angle = Math.PI/2;
+  this.renderAngle = Math.PI/2;
   this.speed = 5;
   this.minSpeed = 2;
   this.maxSpeed = 10;
   this.normalSpeed = 5;
+  this.bumperSpeed = 0;
+  this.rotatedBumperSpeed = new Vec();
+  this.maxBumperSpeed = 15;
+  this.setBumperSpeed = 10;
+  this.bumperFriction = 5;
+  this.bumperTimer = 0;
   this.acceleration = 0;
   this.friction = 0.1;
 
   this.ease = 0.2;
   this.rotation = 0.1;
+
+  this.collider = new LineCollider();
 
   this.input = new input();
 
@@ -51,7 +61,6 @@ export function player() {
   this.tailGroup.linewidth = 5;
   this.tailGroup.noFill();
 
-  //this.head = two.makeCircle(0, 0, 10);
   this.head = two.makePath(20,0,0,10,-20,0,0,-10,false);
 
   this.group = two.makeGroup(this.head);

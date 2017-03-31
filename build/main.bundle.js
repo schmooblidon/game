@@ -86,11 +86,15 @@ var _render = __webpack_require__(4);
 
 var _input = __webpack_require__(1);
 
+var _stage = __webpack_require__(9);
+
 // setting up renderer
 var elem = document.getElementById("game");
 var params = { fullscreen: true };
 var two = exports.two = new Two(params).appendTo(elem);
 
+// build stage
+(0, _stage.buildStage)();
 // setting up player
 var p = exports.p = new _player.player();
 
@@ -113,7 +117,8 @@ function gameLoop() {
   }
   if (playing) {
     (0, _physics.physics)(p);
-    (0, _render.updateRenderObjects)();
+    (0, _stage.updateStage)();
+    (0, _render.updateRenderObjects)(p);
   }
   setTimeout(function () {
     gameLoop();
@@ -161,6 +166,8 @@ function input() {
   this.lStickY = [0];
   this.lTrigger = [0];
   this.rTrigger = [0];
+  this.lBumper = [false];
+  this.rBumper = [false];
   this.a = [false];
   this.s = [false];
 
@@ -175,6 +182,8 @@ function input() {
       this.a[i] = this.a[i - 1];
       this.lTrigger[i] = this.lTrigger[i - 1];
       this.rTrigger[i] = this.rTrigger[i - 1];
+      this.lBumper[i] = this.lBumper[i - 1];
+      this.rBumper[i] = this.rBumper[i - 1];
       this.s[i] = this.s[i - 1];
       this.angle[i] = this.angle[i - 1];
       this.magnitude[i] = this.magnitude[i - 1];
@@ -204,6 +213,8 @@ function input() {
           this.a[0] = gamepad.buttons[0].pressed;
           this.lTrigger[0] = gamepad.buttons[6].value;
           this.rTrigger[0] = gamepad.buttons[7].value;
+          this.lBumper[0] = gamepad.buttons[4].pressed;
+          this.rBumper[0] = gamepad.buttons[5].pressed;
           this.s[0] = gamepad.buttons[9].pressed;
         }
       }
@@ -354,6 +365,34 @@ function physics(p) {
   p.vel.x = Math.cos(p.angle) * p.speed;
   p.vel.y = Math.sin(p.angle) * p.speed;
 
+  /*if (p.bumperSpeed > 0) {
+    p.bumperSpeed -= p.bumperFriction;
+    if (p.bumperSpeed < 0) {
+      p.bumperSpeed = 0;
+    }
+  }
+  else {
+    p.bumperSpeed += p.bumperFriction;
+    if (p.bumperSpeed > 0) {
+      p.bumperSpeed = 0;
+    }
+  }*/
+  if (p.bumperTimer > 0) {
+    p.bumperTimer--;
+    if (p.bumperTimer <= 0) {
+      p.bumperSpeed = 0;
+    }
+  }
+
+  if (p.input.lBumper[0] && !p.input.lBumper[1]) {
+    p.bumperSpeed = Math.max(-p.maxBumperSpeed, p.bumperSpeed - p.setBumperSpeed);
+    p.bumperTimer = 5;
+  }
+  if (p.input.rBumper[0] && !p.input.rBumper[1]) {
+    p.bumperSpeed = Math.min(p.maxBumperSpeed, p.bumperSpeed + p.setBumperSpeed);
+    p.bumperTimer = 5;
+  }
+
   for (var i = p.tailLength - 1; i > 0; i--) {
     p.pos[i].x = p.pos[i - 1].x;
     p.pos[i].y = p.pos[i - 1].y;
@@ -361,8 +400,13 @@ function physics(p) {
     p.wrapped[i] = p.wrapped[i - 1];
   }
 
-  p.pos[0].x += p.vel.x;
-  p.pos[0].y += p.vel.y;
+  p.rotatedBumperSpeed.x = Math.cos(p.angle - Math.PI / 2) * p.bumperSpeed;
+  p.rotatedBumperSpeed.y = Math.sin(p.angle - Math.PI / 2) * p.bumperSpeed;
+
+  p.pos[0].x += p.vel.x + p.rotatedBumperSpeed.x;
+  p.pos[0].y += p.vel.y + p.rotatedBumperSpeed.y;
+
+  p.renderAngle = Math.atan2(p.vel.y + p.rotatedBumperSpeed.y, p.vel.x + p.rotatedBumperSpeed.x);
 
   // blastzone wrapping
   var w = document.body.clientWidth + 20;
@@ -385,6 +429,16 @@ function physics(p) {
 
   // calculating colour between green and red for current frame according to speed
   p.colours[0] = "rgb(" + Math.round(Math.max(0, Math.min(255, (p.maxSpeed - p.speed) / (p.maxSpeed - p.normalSpeed) * 255))) + "," + Math.round(Math.max(0, Math.min(255, (p.speed - p.minSpeed) / (p.normalSpeed - p.minSpeed) * 255))) + ",0)";
+
+  p.collider.line.p1.x = p.pos[0].x;
+  p.collider.line.p1.y = p.pos[0].y;
+  if (p.wrapped[0]) {
+    p.collider.line.p2.x = p.pos[0].x;
+    p.collider.line.p2.y = p.pos[0].y;
+  } else {
+    p.collider.line.p2.x = p.pos[1].x;
+    p.collider.line.p2.y = p.pos[1].y;
+  }
 }
 
 /***/ }),
@@ -401,6 +455,8 @@ exports.player = player;
 
 var _Vec = __webpack_require__(5);
 
+var _LineCollider = __webpack_require__(7);
+
 var _main = __webpack_require__(0);
 
 var _input = __webpack_require__(1);
@@ -409,7 +465,7 @@ function player() {
   this.pos = [];
   this.colours = [];
 
-  this.tailLength = 60;
+  this.tailLength = 94;
 
   for (var i = 0; i < this.tailLength; i++) {
     this.pos[i] = new _Vec.Vec();
@@ -417,15 +473,24 @@ function player() {
   }
   this.vel = new _Vec.Vec();
   this.angle = Math.PI / 2;
+  this.renderAngle = Math.PI / 2;
   this.speed = 5;
   this.minSpeed = 2;
   this.maxSpeed = 10;
   this.normalSpeed = 5;
+  this.bumperSpeed = 0;
+  this.rotatedBumperSpeed = new _Vec.Vec();
+  this.maxBumperSpeed = 15;
+  this.setBumperSpeed = 10;
+  this.bumperFriction = 5;
+  this.bumperTimer = 0;
   this.acceleration = 0;
   this.friction = 0.1;
 
   this.ease = 0.2;
   this.rotation = 0.1;
+
+  this.collider = new _LineCollider.LineCollider();
 
   this.input = new _input.input();
 
@@ -453,7 +518,6 @@ function player() {
   this.tailGroup.linewidth = 5;
   this.tailGroup.noFill();
 
-  //this.head = two.makeCircle(0, 0, 10);
   this.head = _main.two.makePath(20, 0, 0, 10, -20, 0, 0, -10, false);
 
   this.group = _main.two.makeGroup(this.head);
@@ -476,21 +540,22 @@ exports.updateRenderObjects = updateRenderObjects;
 
 var _main = __webpack_require__(0);
 
-function updateRenderObjects() {
-  _main.p.group.translation.set(_main.two.width / 2 + _main.p.pos[0].x, _main.two.height / 2 + _main.p.pos[0].y * -1);
-  _main.p.group.rotation = -_main.p.angle;
-  _main.p.group.fill = _main.p.colours[0];
-  for (var i = 0; i < _main.p.tailLength - 1; i++) {
-    _main.p.tail[i].vertices[0].x = _main.p.pos[i].x;
-    _main.p.tail[i].vertices[0].y = _main.p.pos[i].y * -1;
-    if (_main.p.wrapped[i]) {
-      _main.p.tail[i].vertices[1].x = _main.p.pos[i].x;
-      _main.p.tail[i].vertices[1].y = _main.p.pos[i].y * -1;
+function updateRenderObjects(p) {
+  p.group.translation.set(_main.two.width / 2 + p.pos[0].x, _main.two.height / 2 + p.pos[0].y * -1);
+  p.tailGroup.translation.set(_main.two.width / 2, _main.two.height / 2);
+  p.group.rotation = -p.renderAngle;
+  p.group.fill = p.colours[0];
+  for (var i = 0; i < p.tailLength - 1; i++) {
+    p.tail[i].vertices[0].x = p.pos[i].x;
+    p.tail[i].vertices[0].y = p.pos[i].y * -1;
+    if (p.wrapped[i]) {
+      p.tail[i].vertices[1].x = p.pos[i].x;
+      p.tail[i].vertices[1].y = p.pos[i].y * -1;
     } else {
-      _main.p.tail[i].vertices[1].x = _main.p.pos[i + 1].x;
-      _main.p.tail[i].vertices[1].y = _main.p.pos[i + 1].y * -1;
+      p.tail[i].vertices[1].x = p.pos[i + 1].x;
+      p.tail[i].vertices[1].y = p.pos[i + 1].y * -1;
     }
-    _main.p.tail[i].stroke = _main.p.colours[i + 1];
+    p.tail[i].stroke = p.colours[i + 1];
   }
 }
 
@@ -511,6 +576,257 @@ function Vec() {
 
   this.x = x;
   this.y = y;
+
+  this.Dot = function (vec) {
+    return this.x * vec.x + this.y * vec.y;
+  };
+}
+
+/***/ }),
+/* 6 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.Line = Line;
+
+var _Vec = __webpack_require__(5);
+
+function Line() {
+  var p1 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : new _Vec.Vec();
+  var p2 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : new _Vec.Vec();
+
+  this.p1 = p1;
+  this.p2 = p2;
+}
+
+/***/ }),
+/* 7 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.LineCollider = LineCollider;
+
+var _Line = __webpack_require__(6);
+
+function LineCollider() {
+  var line = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : new _Line.Line();
+
+  this.line = line;
+}
+
+/***/ }),
+/* 8 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.Point = Point;
+function Point() {
+  var x = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+  var y = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+
+  this.x = x;
+  this.y = y;
+}
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.stage = undefined;
+exports.buildStage = buildStage;
+exports.updateStage = updateStage;
+
+var _steppingStone = __webpack_require__(10);
+
+var _Point = __webpack_require__(8);
+
+var stage = exports.stage = {
+  steppingStones: []
+};
+
+function buildStage() {
+  var angle = 0;
+  for (var i = 0; i < 12; i++) {
+    stage.steppingStones[i] = new _steppingStone.steppingStone(new _Point.Point(200 * Math.cos(angle), 200 * Math.sin(angle)), 25);
+    angle += 2 * Math.PI / 12;
+  }
+}
+
+function updateStage() {
+  for (var i = 0; i < stage.steppingStones.length; i++) {
+    stage.steppingStones[i].update();
+  }
+}
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.steppingStone = steppingStone;
+
+var _CircleCollider = __webpack_require__(11);
+
+var _main = __webpack_require__(0);
+
+var _LineVsCircle = __webpack_require__(12);
+
+function steppingStone() {
+  var center = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : new Point();
+  var radius = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
+
+  this.center = center;
+  this.radius = radius;
+  // if changing center/radius, remember to change collider props
+  this.circleCollider = new _CircleCollider.CircleCollider(this.radius, this.center);
+
+  this.opacity = 0.2;
+  this.colour = "rgba(255,255,255,0.2)";
+
+  this.switch = false;
+
+  this.steppedOnLastFrame = false;
+
+  this.circleRender = _main.two.makeCircle(this.center.x, this.center.y, this.radius);
+  this.circleRender.fill = this.colour;
+  this.circleRender.noStroke();
+  this.circleRender.translation.set(this.center.x + _main.two.width / 2, this.center.y * -1 + _main.two.height / 2);
+
+  this.update = function () {
+    if ((0, _LineVsCircle.LineVsCircle)(_main.p.collider, this.circleCollider)) {
+      if (!this.steppedOnLastFrame) {
+        this.onStep();
+      }
+      this.steppedOnLastFrame = true;
+    } else {
+      this.steppedOnLastFrame = false;
+    }
+
+    this.opacity = this.switch ? Math.min(0.8, this.opacity + 0.02) : Math.max(0.2, this.opacity - 0.02);
+    this.colour = "rgba(255,255,255," + this.opacity + ")";
+    this.circleRender.fill = this.colour;
+  };
+
+  this.onStep = function () {
+    this.switch ^= true;
+  };
+}
+
+/***/ }),
+/* 11 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.CircleCollider = CircleCollider;
+
+var _Point = __webpack_require__(8);
+
+function CircleCollider() {
+  var radius = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
+  var point = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : new _Point.Point();
+
+  this.radius = radius;
+  this.point = point;
+}
+
+/***/ }),
+/* 12 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.LineVsCircle = LineVsCircle;
+
+var _Vec = __webpack_require__(5);
+
+function LineVsCircle(lineC, circleC) {
+  var d = new _Vec.Vec(lineC.line.p2.x - lineC.line.p1.x, lineC.line.p2.y - lineC.line.p1.y);
+  var f = new _Vec.Vec(lineC.line.p1.x - circleC.point.x, lineC.line.p1.y - circleC.point.y);
+
+  var a = d.Dot(d);
+  var b = 2 * f.Dot(d);
+  var c = f.Dot(f) - circleC.radius * circleC.radius;
+
+  var discriminant = b * b - 4 * a * c;
+  if (discriminant < 0) {
+    // no intersection
+  } else {
+    // ray didn't totally miss sphere,
+    // so there is a solution to
+    // the equation.
+
+    discriminant = Math.sqrt(discriminant);
+
+    // either solution may be on or off the ray so need to test both
+    // t1 is always the smaller value, because BOTH discriminant and
+    // a are nonnegative.
+    var t1 = (-b - discriminant) / (2 * a);
+    var t2 = (-b + discriminant) / (2 * a);
+
+    // 3x HIT cases:
+    //          -o->             --|-->  |            |  --|->
+    // Impale(t1 hit,t2 hit), Poke(t1 hit,t2>1), ExitWound(t1<0, t2 hit), 
+
+    // 3x MISS cases:
+    //       ->  o                     o ->              | -> |
+    // FallShort (t1>1,t2>1), Past (t1<0,t2<0), CompletelyInside(t1<0, t2>1)
+
+    if (t1 >= 0 && t1 <= 1) {
+      // t1 is the intersection, and it's closer than t2
+      // (since t1 uses -b - discriminant)
+      // Impale, Poke
+      return true;
+    }
+
+    // here t1 didn't intersect so we are either started
+    // inside the sphere or completely past it
+    if (t2 >= 0 && t2 <= 1) {
+      // ExitWound
+      return true;
+    }
+
+    if (t1 < 0 && t2 > 1) {
+      return true;
+    }
+
+    // no intn: FallShort, Past, CompletelyInside
+    return false;
+  }
 }
 
 /***/ })

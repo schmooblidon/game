@@ -75,6 +75,34 @@ export function physics(p) {
   p.vel.x = Math.cos(p.angle) * p.speed;
   p.vel.y = Math.sin(p.angle) * p.speed;
 
+  /*if (p.bumperSpeed > 0) {
+    p.bumperSpeed -= p.bumperFriction;
+    if (p.bumperSpeed < 0) {
+      p.bumperSpeed = 0;
+    }
+  }
+  else {
+    p.bumperSpeed += p.bumperFriction;
+    if (p.bumperSpeed > 0) {
+      p.bumperSpeed = 0;
+    }
+  }*/
+  if (p.bumperTimer > 0) {
+    p.bumperTimer--;
+    if (p.bumperTimer <= 0) {
+      p.bumperSpeed = 0;
+    }
+  }
+
+  if (p.input.lBumper[0] && !p.input.lBumper[1]) {
+    p.bumperSpeed = Math.max(-p.maxBumperSpeed, p.bumperSpeed - p.setBumperSpeed);
+    p.bumperTimer = 5;
+  }
+  if (p.input.rBumper[0] && !p.input.rBumper[1]) {
+    p.bumperSpeed = Math.min(p.maxBumperSpeed, p.bumperSpeed + p.setBumperSpeed);
+    p.bumperTimer = 5;
+  }
+
   for (let i=p.tailLength-1;i>0;i--) {
     p.pos[i].x = p.pos[i-1].x;
     p.pos[i].y = p.pos[i-1].y;
@@ -82,8 +110,13 @@ export function physics(p) {
     p.wrapped[i] = p.wrapped[i-1];
   }
 
-  p.pos[0].x += p.vel.x;
-  p.pos[0].y += p.vel.y;
+  p.rotatedBumperSpeed.x = Math.cos(p.angle-Math.PI/2) * p.bumperSpeed;
+  p.rotatedBumperSpeed.y = Math.sin(p.angle-Math.PI/2) * p.bumperSpeed;
+
+  p.pos[0].x += p.vel.x + p.rotatedBumperSpeed.x;
+  p.pos[0].y += p.vel.y + p.rotatedBumperSpeed.y;
+
+  p.renderAngle = Math.atan2(p.vel.y + p.rotatedBumperSpeed.y, p.vel.x + p.rotatedBumperSpeed.x);
 
   // blastzone wrapping
   const w = document.body.clientWidth + 20;
@@ -108,4 +141,16 @@ export function physics(p) {
 
   // calculating colour between green and red for current frame according to speed
   p.colours[0] = "rgb("+Math.round(Math.max(0, Math.min(255, ((p.maxSpeed-p.speed)/(p.maxSpeed - p.normalSpeed))*255)))+","+Math.round(Math.max(0, Math.min(255, ((p.speed-p.minSpeed)/(p.normalSpeed - p.minSpeed))*255)))+",0)";
+
+  p.collider.line.p1.x = p.pos[0].x;
+  p.collider.line.p1.y = p.pos[0].y;
+  if (p.wrapped[0]) {
+    p.collider.line.p2.x = p.pos[0].x;
+    p.collider.line.p2.y = p.pos[0].y;
+  }
+  else {
+    p.collider.line.p2.x = p.pos[1].x;
+    p.collider.line.p2.y = p.pos[1].y;
+  }
+  
 }

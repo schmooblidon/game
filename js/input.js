@@ -4,6 +4,8 @@ export function input() {
   this.lStickY = [0];
   this.lTrigger = [0];
   this.rTrigger = [0];
+  this.lBumper = [false];
+  this.rBumper = [false];
   this.a = [false];
   this.s = [false];
 
@@ -18,6 +20,8 @@ export function input() {
       this.a[i] = this.a[i-1];
       this.lTrigger[i] = this.lTrigger[i-1];
       this.rTrigger[i] = this.rTrigger[i-1];
+      this.lBumper[i] = this.lBumper[i-1];
+      this.rBumper[i] = this.rBumper[i-1];
       this.s[i] = this.s[i-1];
       this.angle[i] = this.angle[i-1];
       this.magnitude[i] = this.magnitude[i-1];
@@ -48,6 +52,8 @@ export function input() {
         this.a[0] = gamepad.buttons[0].pressed;
         this.lTrigger[0] = gamepad.buttons[6].value;
         this.rTrigger[0] = gamepad.buttons[7].value;
+        this.lBumper[0] = gamepad.buttons[4].pressed;
+        this.rBumper[0] = gamepad.buttons[5].pressed;
         this.s[0] = gamepad.buttons[9].pressed;
       }
     }

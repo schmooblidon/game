@@ -1,8 +1,9 @@
-import {p, two, tail} from "./main";
+import {two, tail} from "./main";
 
-export function updateRenderObjects() {
+export function updateRenderObjects(p) {
   p.group.translation.set(two.width/2 + p.pos[0].x, two.height/2 + p.pos[0].y * -1);
-  p.group.rotation = -p.angle;
+  p.tailGroup.translation.set(two.width/2, two.height/2);
+  p.group.rotation = -p.renderAngle;
   p.group.fill = p.colours[0];
   for (let i=0;i<p.tailLength-1;i++) {
     p.tail[i].vertices[0].x = p.pos[i].x;
